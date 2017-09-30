@@ -99,6 +99,49 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         return !$this->error;
 
     }
+    
+    //получаем нужную информацию из файла и передаем в метод для добавления  нового товара
+    public function getNeedData(){
+         //путь где хранится csv файл для import
+        $csvData = 'controller/extension/module/uploads/products.csv';
+        
+        //делаем разбор  файла csv
+        $mas =  array_map('str_getcsv', file($csvData));
+
+        for($i = 1; $i<count($mas); $i++){
+
+                //сливаем 2 строки, что бы подтягивало и картинки тоже
+               $this->importcsv($mas[$i][0].";".$mas[$i][1]);
+
+        }
+        
+        return true;
+    }
+    
+    
+    
+    
+    //получаем данные с файла csv и работаем с ними
+    public function importcsv($mas){
+        
+        //получаем массив нужных нам данных, для формирования массива по добавлению товара
+        $csvExplode = explode(';', $mas);
+        
+        
+        //отправляем массив на добавления в базу товара
+        $this->searchID($csvExplode);
+        
+        return true;
+        
+        #TODO добавления товара в категорию из файла. Нужно взять название категории из файла 
+        #(так как там есть ' и подобные символы надо их экранировать не помню функцию) взять это 
+        #имя и иискать в базе если есть такая категория берем ее id и заносим в товар, если 
+        #нету то пропускаем + нужно решить проблему почему неправильно делает разбор "," если 
+        #есть такой разделитель то почему то переносит на новую строку из-за этого не 
+        #угадать и теряется картинка. Нужно как то сделать, что бы на запятую не обращало 
+        #внимание и под индексом 6 была ссылка на картинку + протестить на xdebug и xhprof 
+        #модуль и по возможности исправить косяки
+    }
  
     //делаем поиск в таблице cache_id_product  на id  товара.
     //Если нету то добавляем товар.
@@ -106,24 +149,20 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         
         //получаем доступ к модели модуля
         $this->load->model('tool/altermodaOC23');
-        $findID = $this->model_tool_altermodaOC23->modelSearchID($mas['id']);
+        $findID = $this->model_tool_altermodaOC23->modelSearchID($mas[0]);
 
         //проверяем есть ли картинка
-        if(!empty($mas["image"])){
-            $imageHreff = $mas["image"]["meta"]["href"];
-            $imageName  = $mas["image"]["filename"];
-            $image = (!empty($this->downloadImage($imageHreff, $imageName))) ? $this->downloadImage($imageHreff, $imageName): " ";
+        if(!empty($mas[6])){
+          $image = (!empty($this->downloadImage($mas[6]))) ? $this->downloadImage($mas[6]): " ";
 
         }else{
-           $imageHreff = " "; 
-           $imageName  = " ";
            $image = "";
         }
         
         
         //проверяем существует ли цена продажи
-        if(!empty($mas['salePrices'][0]['value'])){
-	  $price = number_format($mas['salePrices'][0]['value']/100, 2, '.', '');
+        if(!empty($mas[4])){
+	  $price = number_format($mas[4], 2, '.', '');
         
         }else{
 	  $price = 0;
@@ -161,7 +200,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             'image'                 =>  $image,
             'product_description'   =>  [
                 $this->config->get('config_language_id') =>[
-                    'name'          => $mas['name'],
+                    'name'          => $mas[1],
                     'description'   =>  "",
                     'tag'           =>  "",
                     'meta_title'    =>  "",
@@ -171,7 +210,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             ],
             
             'keyword'               =>  "",
-            'id'                    => "", //сюда надо прописать id товара из файла, что бы в функции передавать
+            'id'                    => $mas[0],
  
 
         ];
@@ -206,7 +245,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             ];
             
           //передаем массив в модель модуля  
-         $this->model_tool_altermodaOC23->modelInsertUUID($data);
+         $this->model_tool_altermodaOC23->modelInsertCacheID($data);
         }
         
         return true;
@@ -216,13 +255,24 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
     
     //функция по скачиванию картинок из моего склада
    function downloadImage($url){
-  
-         //проверяем нету ли ошибок на стороне сервера, если нету то загружаем картинку, если есть то возвращаем false
-        if(!empty($response)){
+       
+        //проверяем есть ли ссылка на картинку
+        if(!empty($url)){
             
-            file_put_contents('../image/catalog/'.time().'jpg', $url);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);  
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+            $response = curl_exec($ch);
+            curl_close($ch);
             
-            return 'catalog/'.time().'jpg';
+            //создаем имя картинки
+            $name = time().'.jpg';
+            
+            file_put_contents('../image/catalog/'.$name, $response);
+            
+            return 'catalog/'.$name;
         }else{
             return false;
         }

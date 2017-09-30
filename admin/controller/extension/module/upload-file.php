@@ -1,6 +1,12 @@
 <?php
 $uploaddir = './uploads/'; 
-$file = $uploaddir . basename('import.csv'); 
+
+//если нету такой директории то создаемо ее с правами 777
+if(!file_exists($uploaddir)){
+    mkdir("./uploads/", 0755); 
+}
+
+$file = $uploaddir . basename('products.csv'); 
  
 $ext = substr($_FILES['uploadfile']['name'],strpos($_FILES['uploadfile']['name'],'.'),strlen($_FILES['uploadfile']['name'])-1); 
 $filetypes = array('.csv');

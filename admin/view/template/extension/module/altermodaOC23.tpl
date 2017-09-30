@@ -95,21 +95,22 @@ error_reporting(E_ALL ^E_NOTICE);
         status.text('');
         //Add uploaded file to list
          if(response==="success"){
-            $('.ball').css('display','none');
-            $('.ball1').css('display','none');
-            
-            $.ajax({
-             url : 'index.php?route=module/myskladoc21/importxls&token=<?php echo $token;?>',
+             $.ajax({
+             url : 'index.php?route=extension/module/altermodaOC23/getNeedData&token=<?=$_GET["token"];?>',
              type : 'post',
              dataType:'text',
              data :{
                good: "good",
              },
              success:function(data){
-              console.log(data);
+              //console.log(data);
+              $('.ball').css('display','none');
+              $('.ball1').css('display','none');
              },
            });
         } else{
+          $('.ball').css('display','none');
+          $('.ball1').css('display','none');
           alert('Error!!!');
         }
       }

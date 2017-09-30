@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+    <name>Altermoda import product (OpenCart 2.3)</name>
+    <code>Altermoda import product (OpenCart 2.3)</code>
+    <version>1.1</version>
+    <author>Artur Legusha</author>
+    <link>http://isyms.ru</link>
+    <file path="admin/model/catalog/product.php">
+        <operation>
+            <search trim="true|false" index="0"><![CDATA[$this->db->query("DELETE FROM " . DB_PREFIX . "coupon_product WHERE product_id = '" . (int)$product_id . "'");]]></search>
+            <add position="after" offset="1"><![CDATA[
+            $this->db->query("DELETE FROM cache_id_product WHERE product_id = '" . (int)$product_id . "'");   
+            ]]></add>
+        </operation>
+    </file>  
+</modification>
+ 
