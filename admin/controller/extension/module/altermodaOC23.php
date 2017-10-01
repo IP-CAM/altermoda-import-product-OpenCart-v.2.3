@@ -106,12 +106,13 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         $csvData = 'controller/extension/module/uploads/products.csv';
         
         //делаем разбор  файла csv
-        $mas =  array_map('str_getcsv', file($csvData));
+        //$mas =  array_map('str_getcsv', file($csvData));
+        $mas = file($csvData);
 
         for($i = 1; $i<count($mas); $i++){
 
                 //сливаем 2 строки, что бы подтягивало и картинки тоже
-               $this->importcsv($mas[$i][0].";".$mas[$i][1]);
+               $this->importcsv(trim($mas[$i]));
 
         }
         
@@ -141,6 +142,10 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         #угадать и теряется картинка. Нужно как то сделать, что бы на запятую не обращало 
         #внимание и под индексом 6 была ссылка на картинку + протестить на xdebug и xhprof 
         #модуль и по возможности исправить косяки
+        
+        #TODO надо исправить косяк в методе по загрузке картинки. Из-за него очень сильно большая 
+        #нагрузка на сервер идет
+  
     }
  
     //делаем поиск в таблице cache_id_product  на id  товара.
@@ -153,7 +158,11 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
 
         //проверяем есть ли картинка
         if(!empty($mas[6])){
-          $image = (!empty($this->downloadImage($mas[6]))) ? $this->downloadImage($mas[6]): " ";
+          
+          //получаем первую ссылку из индекса $m[6] для скачивания  
+          $imageMas = explode(',', $mas[6]);  
+          
+          $image = (!empty($this->downloadImage($imageMas[0]))) ? $this->downloadImage($imageMas[0]): "";
 
         }else{
            $image = "";
@@ -162,7 +171,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         
         //проверяем существует ли цена продажи
         if(!empty($mas[4])){
-	  $price = number_format($mas[4], 2, '.', '');
+	  $price = number_format(floatval($mas[4]), 2, '.', '');
         
         }else{
 	  $price = 0;
@@ -197,6 +206,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             'status'                =>  "",
             'tax_class_id'          =>  "",
             'sort_order'            =>  "",
+            'status'                =>  1,
             'image'                 =>  $image,
             'product_description'   =>  [
                 $this->config->get('config_language_id') =>[
