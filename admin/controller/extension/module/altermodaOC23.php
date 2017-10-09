@@ -1,8 +1,14 @@
 <?php
 ini_set('display_errors',1);
 error_reporting(E_ALL ^E_NOTICE);
-
+# Сохраняем отчет и генерируем ссылку для его просмотра
+#include_once "/var/www/html/xhprof/xhprof_lib/utils/xhprof_lib.php";
+#include_once "/var/www/html/xhprof/xhprof_lib/utils/xhprof_runs.php";
+ 
 class ControllerextensionmoduleAltermodaOC23 extends Controller {
+
+	//создаем массив для хранения данных о кэше картинок
+	public $image_cache = array();
  
  
     public function index() {
@@ -102,11 +108,15 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
     
     //получаем нужную информацию из файла и передаем в метод для добавления  нового товара
     public function getNeedData(){
-         //путь где хранится csv файл для import
+        
+         // Профилируемый код
+     #$xhprof_runs = new XHProfRuns_Default();
+  
+        //путь где хранится csv файл для import
         $csvData = 'controller/extension/module/uploads/products.csv';
+    
         
         //делаем разбор  файла csv
-        //$mas =  array_map('str_getcsv', file($csvData));
         $mas = file($csvData);
 
         for($i = 1; $i<count($mas); $i++){
@@ -115,7 +125,26 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
                $this->importcsv(trim($mas[$i]));
 
         }
-        
+
+            //вызываем функцию которая занесет весь кэш в переменную
+            $this->CacheImage();
+
+            //проверяем не пустая ли переменная с кэешем, если нет то запускаем 
+            //функцию по скачиванию картинок
+            if(!empty($this->image_cache)){
+            	$this->downloadImage();
+            }
+            
+             # Останавливаем профайлер после выполнения программы
+          /*
+                $xhprof_data = xhprof_disable();
+                $run_id = $xhprof_runs->save_run($xhprof_data, "xhprof_test");
+                echo "Report: http://localhost/xhprof/xhprof_html/index.php?run=$run_id&source=xhprof_test";
+                echo "\n";
+           
+           */
+              
+ 
         return true;
     }
     
@@ -133,19 +162,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         $this->searchID($csvExplode);
         
         return true;
-        
-        #TODO добавления товара в категорию из файла. Нужно взять название категории из файла 
-        #(так как там есть ' и подобные символы надо их экранировать не помню функцию) взять это 
-        #имя и иискать в базе если есть такая категория берем ее id и заносим в товар, если 
-        #нету то пропускаем + нужно решить проблему почему неправильно делает разбор "," если 
-        #есть такой разделитель то почему то переносит на новую строку из-за этого не 
-        #угадать и теряется картинка. Нужно как то сделать, что бы на запятую не обращало 
-        #внимание и под индексом 6 была ссылка на картинку + протестить на xdebug и xhprof 
-        #модуль и по возможности исправить косяки
-        
-        #TODO надо исправить косяк в методе по загрузке картинки. Из-за него очень сильно большая 
-        #нагрузка на сервер идет
-  
+ 
     }
  
     //делаем поиск в таблице cache_id_product  на id  товара.
@@ -162,7 +179,10 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
           //получаем первую ссылку из индекса $m[6] для скачивания  
           $imageMas = explode(',', $mas[6]);  
           
-          $image = (!empty($this->downloadImage($imageMas[0]))) ? $this->downloadImage($imageMas[0]): "";
+           $imageUrl = $imageMas[0];
+
+           //генерируем имя (без дублей, что бы было, первое значение это id записив в csv)
+           $imageName =  $mas[0].'_'.time().'.jpg';
 
         }else{
            $image = "";
@@ -171,10 +191,10 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         
         //проверяем существует ли цена продажи
         if(!empty($mas[4])){
-	  $price = number_format(floatval($mas[4]), 2, '.', '');
+      $price = number_format(floatval($mas[4]), 2, '.', '');
         
         }else{
-	  $price = 0;
+      $price = 0;
         }
  
         
@@ -207,7 +227,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             'tax_class_id'          =>  "",
             'sort_order'            =>  "",
             'status'                =>  1,
-            'image'                 =>  $image,
+            'image'                 =>  'catalog/'.$imageName,
             'product_description'   =>  [
                 $this->config->get('config_language_id') =>[
                     'name'          => $mas[1],
@@ -221,6 +241,8 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
             
             'keyword'               =>  "",
             'id'                    => $mas[0],
+            'image_url'             => $imageUrl,
+            'image_name'            => $imageName,
  
 
         ];
@@ -250,43 +272,76 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         //делаем проверку если товар добавлен то заносим его id  в таблицу cache_id_product
         if(!empty($product_id)){
             $data = [
-               'product_id' =>  $product_id,
-               'cache_id'       =>  $data['id'],   
-            ];
+               'product_id'     =>  $product_id,
+               'cache_id'       =>  $data['id'],
+               'image_url'      =>  $data['image_url'],
+               'name'           =>  $data['image_name'],
+             ];
             
           //передаем массив в модель модуля  
          $this->model_tool_altermodaOC23->modelInsertCacheID($data);
+
+         //заносим кэш инфы картинки
+         $this->model_tool_altermodaOC23->insertCacheImage($data);
         }
         
         return true;
     }
-    
-    
-    
-    //функция по скачиванию картинок из моего склада
-   function downloadImage($url){
-       
-        //проверяем есть ли ссылка на картинку
-        if(!empty($url)){
-            
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);  
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+ 
+    //получаем данные о кэше и заносим в массив
+    public function CacheImage(){
+ 		
+ 		//получаем доступ к модели модуля
+        $this->load->model('tool/altermodaOC23');
 
-            $response = curl_exec($ch);
-            curl_close($ch);
-            
-            //создаем имя картинки
-            $name = time().'.jpg';
-            
-            file_put_contents('../image/catalog/'.$name, $response);
-            
-            return 'catalog/'.$name;
-        }else{
-            return false;
+        //получаем массив данных
+        $image =  $this->model_tool_altermodaOC23->getImage();
+
+        //проверяем не пустой ли нам прилетел результат с базы
+        if(!empty($image)){
+			$this->image_cache = $image;
         }
-    }
+
+       return true;
+ 	}
+
+ 	//функция по скачиванию картинок на хост
+ 	public function downloadImage(){
+ 		//получаем доступ к модели модуля
+        $this->load->model('tool/altermodaOC23');
+ 		
+ 		//проверяем есть ли картинки
+        if(!empty($this->image_cache)){
+
+        	$image = $this->image_cache;
+
+            for($i=0; $i<count($image); $i++){
+            
+ 				$response = file_get_contents($image[$i]["image_url"]);
+     
+                file_put_contents('../image/catalog/'.$image[$i]["name"], $response);
+            }
+ 
+  		}
+
+  		//удаляем переменную с данными
+  		unset($this->image_cache);
+ 		$this->model_tool_altermodaOC23->deleteCacheImage();
+
+  		return true;
+     
+
+ 	}
+    
+    
+    #TODO удаляем весь кэш с таблицы (но не в цикле, а после вызова функции) и попробывать скачивать с помощью 
+    #curl но это не точно. Так же нужно создать функцию которая будет проверять есть ли такая категория если 
+    #есть то получаем ид и прописываем в товаре (делать это все с методо editProduct, что бы не нагружать 
+    #сервак) ну или как то так или сразу добавить или при загрузке вытянуть все категории в массив где 
+    #будет ключь это ид категории, а значение название и дальше делать поиск по значение если есть такой массив 
+    #то берем его ключь и прописываем в добавление товара (назначение категории где ид товара это ключь массива). 
+    #Так и нужно сделать !!!
+    
  
 }
 ?>

@@ -103,10 +103,11 @@ error_reporting(E_ALL ^E_NOTICE);
                good: "good",
              },
              success:function(data){
-              //console.log(data);
+               console.log(data);
               $('.ball').css('display','none');
               $('.ball1').css('display','none');
-             },
+
+              },
            });
         } else{
           $('.ball').css('display','none');
