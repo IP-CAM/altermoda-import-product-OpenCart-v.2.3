@@ -95,29 +95,42 @@ error_reporting(E_ALL ^E_NOTICE);
         status.text('');
         //Add uploaded file to list
          if(response==="success"){
-             $.ajax({
-             url : 'index.php?route=extension/module/altermodaOC23/getNeedData&token=<?=$_GET["token"];?>',
-             type : 'post',
-             dataType:'text',
-             data :{
-               good: "good",
-             },
-             success:function(data){
-               console.log(data);
-              $('.ball').css('display','none');
-              $('.ball1').css('display','none');
-
-              },
-           });
-        } else{
-          $('.ball').css('display','none');
-          $('.ball1').css('display','none');
-          alert('Error!!!');
+            recurAjax(); 
         }
       }
     });
   });
+
+//рекурсивная загрузка товара, если сервер выбил по 503 ошибки то автоматом загружаем заново
+function recurAjax(){
+  $.ajax({
+    url : 'index.php?route=extension/module/altermodaOC23/getNeedData&token=<?=$_GET["token"];?>',
+    type : 'post',
+    dataType:'text',
+    data :{
+      good: "good",
+    },
+    success:function(data){
+      console.log(data);
+      $('.ball').css('display','none');
+      $('.ball1').css('display','none');
+
+    },
+    error:function (jqXHR) {
+      if (jqXHR.status == 503) {
+        //перед началом рекурсии делаем перерыв на 3 сек, что бы серв остыл :)  
+        setTimeout(recurAjax(), 3000);
+    }else{
+      $('.ball').css('display','none');
+      $('.ball1').css('display','none');
+    }
+
+      
+    },
+  });
+}
  </script>
+}
 
 
 <?php echo $footer; ?>
