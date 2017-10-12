@@ -1,15 +1,9 @@
 <?php
-ini_set('display_errors',1);
-error_reporting(E_ALL ^E_NOTICE);
-# Сохраняем отчет и генерируем ссылку для его просмотра
-include_once "/var/www/html/xhprof/xhprof_lib/utils/xhprof_lib.php";
-include_once "/var/www/html/xhprof/xhprof_lib/utils/xhprof_runs.php";
-xhprof_enable(XHPROF_FLAGS_CPU + XHPROF_FLAGS_MEMORY);
  
 class ControllerextensionmoduleAltermodaOC23 extends Controller {
-  	
-  	//временное хранилище
-	public $dataMas = array();
+    
+    //временное хранилище
+    public $dataMas = array();
  
  
     public function index() {
@@ -110,9 +104,7 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
     
     //получаем нужную информацию из файла и передаем в метод для добавления  нового товара
     public function getNeedData(){
-        
-         // Профилируемый код
-     	$xhprof_runs = new XHProfRuns_Default();
+         
   
         //делаем разбор  файла csv
         $mas = file('controller/extension/module/uploads/products.csv');
@@ -121,36 +113,28 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         //убераем первый элемент массива (имена столбцов), начиная цикл со второго значения
         array_shift($mas);
         foreach($mas as $massiv){
- 			
- 			//получаем массив нужных нам данных, для формирования массива по добавлению товара
-        	$this->dataMas[] = explode(';', trim($massiv));
+            
+            //получаем массив нужных нам данных, для формирования массива по добавлению товара
+            $this->dataMas[] = explode(';', trim($massiv));
 
         }
 
         //делаем провекру если массив не пустой то заносим данные в базу
         if(!empty($this->dataMas)){
+            
+            //парсим файл и получаем нужные данные
+             $this->importcsv();
 
-        	//парсим файл и получаем нужные данные
-        	$this->importcsv();
-
-        	//добавляем новый товар
-            $this->insertProduct();
-		}
-  		
-  		//проверяем не пустая ли переменная с кэшем, если нет то запускаем 
+            //добавляем новый товар
+             $this->insertProduct();
+        }
+        
+        //проверяем не пустая ли переменная с кэшем, если нет то запускаем 
         //функцию по скачиванию картинок
         if(!empty($this->image_cache)){
-          	$this->downloadImage();
+            $this->downloadImage();
         }
- 
- 		 # Останавливаем профайлер после выполнения программы
-          
-                $xhprof_data = xhprof_disable();
-                $run_id = $xhprof_runs->save_run($xhprof_data, "xhprof_test");
-                echo "Report: http://localhost/xhprof/xhprof_html/index.php?run=$run_id&source=xhprof_test";
-                echo "\n";
-              
- 
+  
         return true;
     }
  
@@ -167,14 +151,14 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         //делаем проверку есть ли в базе товар.Если есть удаляем из массива
         foreach($this->dataMas as $mas){
 
-        	$findID = $this->model_tool_altermodaOC23->modelSearchID($mas[0]);
+            $findID = $this->model_tool_altermodaOC23->modelSearchID($mas[0]);
 
-	        //если нашли id товара то удаляем из массива, если нет то заносим данные в новый массив
-	        if(!empty($findID)){
-	            unset($mas);
-	        }elseif(!empty($mas)){
-		 		$cacheData[] = $mas;
-		 	}
+            //если нашли id товара то удаляем из массива, если нет то заносим данные в новый массив
+            if(!empty($findID)){
+                unset($mas);
+            }elseif(!empty($mas)){
+                $cacheData[] = $mas;
+            }
 
         }
 
@@ -186,79 +170,84 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
  
         //формируем массив с данными которые нужно занести в базу
         foreach ($cacheData as $mas){
-        	//проверяем есть ли картинка
-	        if(!empty($mas[6])){
-	          
-	        	//получаем первую ссылку из индекса $m[6] для скачивания  
-	        	$imageMas = explode(',', $mas[6]);  
-	          
-	        	$imageUrl = $imageMas[0];
+            //проверяем есть ли картинка
+            if(!empty($mas[6])){
+              
+                //получаем первую ссылку из индекса $m[6] для скачивания  
+                $imageMas = explode(',', $mas[6]);  
+              
+                $imageUrl = $imageMas[0];
 
-	        	//генерируем имя (без дублей, что бы было, первое значение это id записив в csv)
-	      		$imageName =  $mas[0].'_'.time().'.jpg';
+                //генерируем имя (без дублей, что бы было, первое значение это id записив в csv)
+                $imageName =  $mas[0].'_'.time().'.jpg';
 
-	        }else{
-	            $image = "";
-	            $imageName = "";
-	            $imageUrl = "";
-			}
-	        
-	        
-	        //проверяем существует ли цена продажи
-	        if(!empty($mas[4])){
-	      $price = number_format(floatval($mas[4]), 2, '.', '');
-	        
-	        }else{
-	      $price = 0;
-	        }
-	  
-	        $data[] = [
-	            'model'                 =>  "",
-	            'sku'                   =>  "",
-	            'upc'                   =>  "",
-	            'ean'                   =>  "",
-	            'jan'                   =>  "",
-	            'isbn'                  =>  "",
-	            'mpn'                   =>  "",
-	            'location'              =>  "",
-	            'quantity'              =>  0,
-	            'minimum'               =>  "",
-	            'subtract'              =>  "",
-	            'stock_status_id'       =>  "",
-	            'date_available'        =>  "",
-	            'manufacturer_id'       =>  "",
-	            'shipping'              =>  "",
-	            'price'                 =>  $price,
-	            'points'                =>  "",
-	            'weight'                =>  0,
-	            'weight_class_id'       =>  "",
-	            'length'                =>  "",
-	            'width'                 =>  "",
-	            'height'                =>  "",
-	            'length_class_id'       =>  "",
-	            'status'                =>  "",
-	            'tax_class_id'          =>  "",
-	            'sort_order'            =>  "",
-	            'status'                =>  1,
-	            'image'                 =>  'catalog/'.$imageName,
-	            'product_description'   =>  [
-	                $this->config->get('config_language_id') =>[
-	                    'name'          => $mas[1],
-	                    'description'   =>  "",
-	                    'tag'           =>  "",
-	                    'meta_title'    =>  "",
-	                    'meta_description'  =>  "",
-	                    'meta_keyword'  =>  "",
-	                ],
-	            ],
-	            
-	            'keyword'               =>  "",
-	            'id'                    => $mas[0],
-	            'image_url'             => $imageUrl,
-	            'image_name'            => $imageName,
-	 
+            }else{
+                $image = "";
+                $imageName = "";
+                $imageUrl = "";
+            }
+            
+            
+            //проверяем существует ли цена продажи
+            if(!empty($mas[4])){
+          $price = number_format(floatval($mas[4]), 2, '.', '');
+            
+            }else{
+          $price = 0;
+            }
+      
+            $data[] = [
+                'model'                 =>  "",
+                'sku'                   =>  "",
+                'upc'                   =>  "",
+                'ean'                   =>  "",
+                'jan'                   =>  "",
+                'isbn'                  =>  "",
+                'mpn'                   =>  "",
+                'location'              =>  "",
+                'quantity'              =>  0,
+                'minimum'               =>  "",
+                'subtract'              =>  "",
+                'stock_status_id'       =>  "",
+                'date_available'        =>  "",
+                'manufacturer_id'       =>  "",
+                'shipping'              =>  "",
+                'price'                 =>  $price,
+                'points'                =>  "",
+                'weight'                =>  0,
+                'weight_class_id'       =>  "",
+                'length'                =>  "",
+                'width'                 =>  "",
+                'height'                =>  "",
+                'length_class_id'       =>  "",
+                'status'                =>  "",
+                'tax_class_id'          =>  "",
+                'sort_order'            =>  "",
+                'status'                =>  1,
+                'image'                 =>  'catalog/'.$imageName,
+                'product_description'   =>  [
+                    $this->config->get('config_language_id') =>[
+                        'name'          => $mas[1],
+                        'description'   =>  "",
+                        'tag'           =>  "",
+                        'meta_title'    =>  "",
+                        'meta_description'  =>  "",
+                        'meta_keyword'  =>  "",
+                    ],
+                ],
+                'product_category'      =>[
+                    'category_id'       =>  (!empty($this->findCategory($mas[3]))) ? $this->findCategory($mas[3]) : $this->addCategoryModule($mas[3]),  
+                ],
+                'product_store'     =>[
+                    'store_id'          => $this->config->get('config_store_id'),
+                ],
+                'keyword'               =>  "",
+                'id'                    => $mas[0],
+                'image_url'             => $imageUrl,
+                'image_name'            => $imageName,
+     
 
-	        ];
+            ];
 
         }
 
@@ -280,25 +269,25 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
         //Добавляем новый товар так же добавляем в кэш добавленный товар
         foreach($this->dataMas as $data){
 
-        	$product_id = $this->model_catalog_product->addProduct($data);
+            $product_id = $this->model_catalog_product->addProduct($data);
         
-	        //делаем проверку если товар добавлен то заносим его id  в таблицу cache_id_product
-	        if(!empty($product_id)){
-	            $dat = [
-	               'product_id'     =>  $product_id,
-	               'cache_id'       =>  $data['id'],
-	            ];
-	            
-	    	    //передаем массив в модель модуля  
-		        $this->model_tool_altermodaOC23->modelInsertCacheID($dat);
- 	
-		        //когда товар занесли в базу то скачиваем картинку
-				if(!empty($data['image_url']) && !empty($data['image_name'])){
-		        	$this->downloadImage($data['image_url'],$data['image_name']);
-		        }
-	        	
-	        }
-  		}
+            //делаем проверку если товар добавлен то заносим его id  в таблицу cache_id_product
+            if(!empty($product_id)){
+                $dat = [
+                   'product_id'     =>  $product_id,
+                   'cache_id'       =>  $data['id'],
+                ];
+
+                //передаем массив в модель модуля  
+                $this->model_tool_altermodaOC23->modelInsertCacheID($dat);
+    
+                //когда товар занесли в базу то скачиваем картинку
+                if(!empty($data['image_url']) && !empty($data['image_name'])){
+                    $this->downloadImage($data['image_url'],$data['image_name']);
+                }
+ 
+            }
+        }
 
         unset($this->dataMas);
 
@@ -307,25 +296,85 @@ class ControllerextensionmoduleAltermodaOC23 extends Controller {
 
 
 
-	//функция по скачиванию картинок на хост
- 	public function downloadImage($image_url,$name){
- 		set_time_limit(0);
+    //функция по скачиванию картинок на хост
+    public function downloadImage($image_url,$name){
+        set_time_limit(0);
 
- 	  	$response = file_get_contents($image_url);
-	    file_put_contents('../image/catalog/'.$name, $response);
+        $response = file_get_contents($image_url);
+        file_put_contents('../image/catalog/'.$name, $response);
  
-  		return true;
+        return true;
      
 
- 	}
+    }
     
+    //метод по формированию массива для создания категорий
+    public function addCategoryModule($name){
+
+        //подключаем модель категории
+        $this->load->model('catalog/category');
+
+        if(!empty($name)){
+            //формируем массив на добавлении новой категории
+            $data = [
+                'parent_id'         =>  0,
+                'top'               =>  1,
+                'column'            =>  1,
+                'sort_order'        =>  5,
+                'status'            =>  1,
+                'category_description'   => [
+                    $this->config->get('config_language_id') =>[
+                        'name'          => $name,
+                        'description'   =>  "",
+                        'meta_title'    =>  "",
+                        'meta_description'  =>  "",
+                        'meta_keyword'  =>  "",
+                    ],
+                ],
+                'parent_id'         =>  0,
+                'category_store'    =>[
+                    'store_id'      => $this->config->get('config_store_id'),
+                ],
+
+             ];
+
+             //получаем ид ново-добавленной категории
+             $id = $this->model_catalog_category->addCategory($data);
+
+            return $id;
+
+        }else{
+            return 0;
+        }
+
+        
+    }
+
+
+    //метод по поиску нужной категории (по имени категории)
+    public function findCategory($name){
+        
+        //подключаем доступ до модели модуля
+        $this->load->model('tool/altermodaOC23');
+
+        if(!empty($name)){
+            //получаем ид категории по имени
+            $findID = $this->model_tool_altermodaOC23->findCategoryModel($name);
+
+            //проверяем ответ
+            if(!empty($findID['category_id'])){
+                return $findID['category_id'];
+            }else{
+                return false;
+            }
+
+        }else{
+            return 0;
+        }
+ 
+    }
+
     
-    #TODO Так же нужно создать функцию которая будет проверять есть ли такая категория если 
-    #есть то получаем ид и прописываем в товаре (делать это все с методо editProduct, что бы не нагружать 
-    #сервак) ну или как то так или сразу добавить или при загрузке вытянуть все категории в массив где 
-    #будет ключь это ид категории, а значение название и дальше делать поиск по значение если есть такой массив 
-    #то берем его ключь и прописываем в добавление товара (назначение категории где ид товара это ключь массива). 
-    #Так и нужно сделать !!!
     
  
 }

@@ -1,8 +1,5 @@
-<?php echo $header; ?><?php echo $column_left;
-ini_set('display_errors',1);
-error_reporting(E_ALL ^E_NOTICE);
-
-?>
+<?php echo $header; ?>
+<?php echo $column_left; ?>
  
 <div id="content" style="margin-left:50px;">
   <div class="page-header">
@@ -111,7 +108,7 @@ function recurAjax(){
       good: "good",
     },
     success:function(data){
-      console.log(data);
+      //console.log(data);
       $('.ball').css('display','none');
       $('.ball1').css('display','none');
 

@@ -13,6 +13,11 @@ class ModelToolAltermodaOC23 extends Model {
       $this->db->query('INSERT INTO `cache_id_product` SET product_id = ' . (int)$data["product_id"] . ', `cache_id` = "' . $data["cache_id"] . '"');  
       return true;
     }
+
+    //поиск категории по имени
+    public function findCategoryModel($name){
+      $query = $this->db->query("SELECT category_id FROM `" . DB_PREFIX . "category_description` WHERE name = '" . $this->db->escape($name) . "'");
+        return $query->row;
+    }
  
- 
-}
+ }
